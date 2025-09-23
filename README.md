@@ -3,7 +3,7 @@
 ![Tela Inicial](images/menu.png)  
 *Imagem do menu do jogo*
 
-Fuga das Profundezas é um jogo 2D desenvolvido em Python utilizando a biblioteca **Pygame Zero**. O jogador controla um personagem que precisa sobreviver aos inimigos que aparecem na tela, completando níveis baseados em tempo de sobrevivência.
+Fuga das Profundezas é um jogo 2D desenvolvido em Python utilizando a biblioteca **Pygame Zero**. O jogador controla um personagem que navega entre as plataformas e precisa sobreviver aos inimigos que aparecem na tela, completando níveis baseados em tempo de sobrevivência.
 
 ---
 
@@ -20,13 +20,15 @@ Fuga das Profundezas é um jogo 2D desenvolvido em Python utilizando a bibliotec
 
 ## ⌨️ Controles
 
-- **Setas →, ←, ↑, ↓**: mover o jogador  
+- **Backspace**: pular  
+- **Setas →, ←**: mover o jogador  
 - **Mouse**: clicar nos botões do menu e durante o jogo  
   - **Começar**: inicia o jogo  
   - **Música ON/OFF**: ativa/desativa a música de fundo  
   - **Sons ON/OFF**: ativa/desativa efeitos sonoros  
   - **Sair**: fecha o jogo  
   - **Menu**: volta para o menu principal durante o jogo  
+  - **Recomeçar**: reinicia o nível 
 
 ---
 
@@ -36,3 +38,8 @@ Fuga das Profundezas é um jogo 2D desenvolvido em Python utilizando a bibliotec
 2. Instale o **Pygame Zero**:
    ```bash
    pip install pgzero
+3. Rode com:
+    ```bash
+    pgzrun main.py
+    ou
+    python main.py

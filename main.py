@@ -1,3 +1,6 @@
+import os
+os.environ['SDL_VIDEO_CENTERED'] = '1'  # Centraliza a janela
+
 import math
 import pgzrun
 from pygame import Rect
@@ -5,12 +8,17 @@ import random
 import time
 
 # --- Tamanho da tela ---
+#WIDTH = 800
+#HEIGHT = 600
 background = Actor('background')  # background.png
 WIDTH = background.width
 HEIGHT = background.height
 
+# --- Background (ajustado ao tamanho novo) ---
+#background = Actor('background', (WIDTH // 2, HEIGHT // 2))
+
 # --- Variáveis globais ---
-is_music_on = True
+is_music_on = False
 is_sounds_on = False
 background_music = 'bolhas'  # nome da música
 survive_time = 30  # segundos para passar de nível
@@ -22,21 +30,39 @@ def is_collision(a, b, radius_a=20, radius_b=20):
     distance = math.hypot(dx, dy)
     return distance < (radius_a + radius_b)
 
+# --- Classe Plataforma Física ---
+class Platform:
+    def __init__(self, x, y, w=120, h=10):
+        self.rect = Rect((x, y), (w, h))
+        self.image = "platform"
+
+    def draw(self):
+        screen.blit(self.image, self.rect)
+
 # --- Classe Player ---
 class Player:
     def __init__(self, pos):
         self.actor = Actor('player_idle', pos)
         self.vx = 0
         self.vy = 0
-        self.speed = 5
+        self.speed = 3
+        self.gravity = 0.6
+        self.jump_power = -12
+        self.on_ground = False
+
+        # Animações
         self.idle_frames = ['player_idle', 'player_run1']
         self.run_frames = ['player_run1', 'player_run2']
         self.anim_index = 0
         self.anim_timer = 0
         self.run_anim = False
 
-    def update(self):
-        self.vx = self.vy = 0
+    def get_rect(self):
+        # Caixa de colisão do jogador
+        return Rect((self.actor.left, self.actor.top), (self.actor.width, self.actor.height))
+
+    def update(self, platforms):
+        self.vx = 0
         self.run_anim = False
 
         if keyboard.left:
@@ -46,19 +72,41 @@ class Player:
             self.vx = self.speed
             self.run_anim = True
 
-        if keyboard.up:
-            self.vy = -self.speed
-        elif keyboard.down:
-            self.vy = self.speed
+        # Pulo
+        if keyboard.space and self.on_ground:
+            self.vy = self.jump_power
+            self.on_ground = False
 
+        # Aplicar gravidade
+        self.vy += self.gravity
+
+        # Atualizar posição horizontal
         self.actor.x += self.vx
+
+        # Atualizar posição vertical
         self.actor.y += self.vy
 
+        self.on_ground = False
+        player_rect = self.get_rect()
+
+        # Verifica colisão com plataformas
+        for platform in platforms:
+            if player_rect.colliderect(platform.rect):
+                if self.vy > 0 and player_rect.bottom - self.vy <= platform.rect.top:
+                    # Aterrissou na plataforma
+                    self.actor.bottom = platform.rect.top
+                    self.vy = 0
+                    self.on_ground = True
+
         # Limites da tela
-        self.actor.left = max(self.actor.left, 0)
-        self.actor.right = min(self.actor.right, WIDTH)
-        self.actor.top = max(self.actor.top, 0)
-        self.actor.bottom = min(self.actor.bottom, HEIGHT)
+        if self.actor.left < 0:
+            self.actor.left = 0
+        if self.actor.right > WIDTH:
+            self.actor.right = WIDTH
+        if self.actor.bottom > HEIGHT:
+            self.actor.bottom = HEIGHT
+            self.vy = 0
+            self.on_ground = True
 
         # Animação
         self.anim_timer += 1
@@ -113,12 +161,23 @@ class Button:
 # --- Classe Game ---
 class Game:
     def __init__(self):
-        self.player = Player((WIDTH // 2, HEIGHT // 2))
+        self.player = Player((100, HEIGHT - 150))
         self.enemies = []
         self.game_started = False
         self.game_over = False
         self.level_complete = False
         self.start_time = 0
+
+        # Plataformas
+        self.platforms = [
+            Platform(0, HEIGHT - 40, WIDTH, 40),  # chão
+            Platform(150, HEIGHT - 120),
+            Platform(320, HEIGHT - 200),
+            Platform(500, HEIGHT - 280),
+            Platform(650, HEIGHT - 350),
+            Platform(450, HEIGHT - 400),
+            Platform(280, HEIGHT - 430),
+        ]
 
         # Botões
         self.start_button = Button(Rect(WIDTH // 2 - 100, HEIGHT // 2 - 75, 200, 50), (0, 255, 0), "Começar")
@@ -126,18 +185,20 @@ class Game:
         self.sound_button = Button(Rect(WIDTH // 2 - 100, HEIGHT // 2 + 75, 200, 50), (255, 255, 0), "Sons: OFF")
         self.exit_button = Button(Rect(WIDTH // 2 - 100, HEIGHT // 2 + 150, 200, 50), (255, 0, 0), "Sair")
         self.back_button = Button(Rect(10, 10, 120, 40), (200, 0, 0), "Menu")
+        self.restart_button = Button(Rect(10, 60, 120, 40), (0, 150, 0), "Recomeçar")
 
     def spawn_enemy(self):
         y = random.randint(50, HEIGHT - 50)
         self.enemies.append(Enemy((WIDTH + 50, y)))
 
+
     def update(self):
         global is_sounds_on
         if self.game_started and not self.game_over and not self.level_complete:
-            self.player.update()
+            self.player.update(self.platforms)
 
             # Criar inimigos
-            if random.randint(1, 50) == 1:
+            if random.randint(1, 100) == 1:
                 self.spawn_enemy()
 
             # Atualizar inimigos
@@ -165,11 +226,15 @@ class Game:
         if self.game_started:
             background.draw()
             self.player.draw()
+            for plat in self.platforms:
+                plat.draw()
             for enemy in self.enemies:
                 enemy.draw()
 
             # Menu no canto
             self.back_button.draw()
+            self.restart_button.draw()
+
 
             # Cronômetro
             if not self.game_over and not self.level_complete:
@@ -181,6 +246,7 @@ class Game:
                 screen.draw.text("GAME OVER", center=(WIDTH//2, HEIGHT//2), fontsize=60, color="red")
             elif self.level_complete:
                 screen.draw.text("NÍVEL COMPLETO!", center=(WIDTH//2, HEIGHT//2), fontsize=50, color="green")
+
 
         else:
             screen.fill((0, 0, 0))
@@ -215,6 +281,13 @@ def on_mouse_down(pos, button):
             game.level_complete = False
             game.enemies.clear()
             play_click()
+
+        elif game.restart_button.is_clicked(pos):
+            game.__init__()  # Reinicia o jogo completamente
+            game.game_started = True
+            game.start_time = time.time()
+            play_click()
+
     else:
         if game.start_button.is_clicked(pos):
             game.game_started = True
@@ -239,6 +312,7 @@ def on_mouse_down(pos, button):
             play_click()
             exit()
 
+# --- Loop principal ---
 def update():
     game.update()
 
